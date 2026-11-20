@@ -1,0 +1,76 @@
+
+name: JARVIS VIP APK BUILDER
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Download Project
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git zip unzip \
+            build-essential \
+            python3-pip python3-venv \
+            autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev \
+            libncursesw5-dev libtinfo5 \
+            cmake libffi-dev libssl-dev \
+            openjdk-17-jdk
+
+      - name: Install Buildozer
+        run: |
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user \
+            buildozer==1.5.0 \
+            Cython==0.29.36
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Check Project
+        run: |
+          test -f main.py
+          test -f buildozer.spec
+          echo "Project files found"
+
+      - name: Build Debug APK
+        run: |
+          buildozer -v android debug
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-VIP-APK
+          path: bin/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Save Error Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-BUILD-ERROR-LOGS
+          path: .buildozer/
+          if-no-files-found: ignore
+          retention-days: 3
